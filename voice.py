@@ -1,12 +1,9 @@
-import os
 import logging
 import telebot
 from telebot import types
 from gtts import gTTS
-import pyttsx3
 import edge_tts
 import asyncio
-
 
 logging.basicConfig(level=logging.INFO)
 token = '8049026907:AAEblYRbs9V3paCRxlSRp40Z6TiQ6R-neC0'
@@ -35,46 +32,47 @@ def support_command(message):
 def help_command(message):
     bot.send_message(message.chat.id, HELP)
 
+
 @bot.message_handler(commands=['voice'])
 def show_settings(message):
     chat_id = message.chat.id
-    
+
     # Получаем текущие настройки пользователя
     settings_dict = settings.get(chat_id, {})
-    
+
     lang = settings_dict.get("lang", "ru")  # По умолчанию русский язык
-    
+
     def format_russian(text):
         return text
-    
+
     def format_english(text):
         return text
-    
+
     format_func = format_russian if lang == "ru" else format_english
-    
+
     lang = settings_dict.get("lang", "No language selected")
     gender = settings_dict.get("gender", "No gender selected")
     mood = settings_dict.get("mood", "Neutral mood")
-    
-    settings_text = f"""
-Current Settings for Chat ID {chat_id}:
 
-Язык: {format_func(lang)}
-Пол: {format_func(gender)}
-Эмоция: {format_func(mood)}
-"""
-    
+    settings_text = f"""
+    Current Settings for Chat ID {chat_id}:
+
+    Язык: {format_func(lang)}
+    Пол: {format_func(gender)}
+    Эмоция: {format_func(mood)}
+    """
     bot.send_message(chat_id, settings_text)
+
 
 @bot.message_handler(commands=['start'])
 def start(message):
     chat_id = message.chat.id
-    
+
     # Проверяем наличие настроек для пользователя
     if chat_id not in settings:
         # Если нет настроек, создаем их с базовым значением для языка
         set_language(chat_id, "ru")  # Предполагаем русский язык по умолчанию
-        
+
     bot.send_message(message.chat.id, "Привет! Я могу озвучить текст. Для начала выберите язык:")
     send_language_selection(message)
 
@@ -120,36 +118,32 @@ def send_mood_selection(chat_id):
     bot.send_message(chat_id, "Выберите настройку тона:", reply_markup=markup)
 
 
-
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
     chat_id = call.message.chat.id
-    
+
     if call.data == "reset":
         reset_settings(chat_id)
         bot.answer_callback_query(callback_query_id=call.id, text="Настройки сброшены.")
-    
+
     elif call.data in ["ru", "en"]:
         set_language(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} язык.")
-        
+
         if call.data == "ru":
             send_voice_selection(chat_id)
         else:
             send_voice_selection(chat_id)
-    
+
     elif call.data in ["male", "female"]:
         set_gender(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} голос.")
         send_mood_selection(chat_id)
-    
+
     elif call.data in ["joyful", "cheerful", "fear", "sad", "angry"]:
         set_mood(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} настройку тона.")
         bot.send_message(chat_id, "Теперь введите текст для озвучки.")
-
-
-
 
 
 def set_language(chat_id, lang):
@@ -159,12 +153,14 @@ def set_language(chat_id, lang):
 def set_gender(chat_id, gender):
     settings[chat_id]["gender"] = gender
 
+
 def set_mood(chat_id, mood):
     settings[chat_id]["mood"] = mood
 
 
 def reset_settings(chat_id):
     settings.pop(chat_id, None)
+
 
 async def make_sound(text, voice_name, id):
     tts = edge_tts.Communicate(
@@ -173,23 +169,25 @@ async def make_sound(text, voice_name, id):
     )
     await tts.save(f"audio{id}.mp3")
 
+
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
     chat_id = message.chat.id
-    
+
     lang = settings.get(chat_id, {}).get("lang")
     gender = settings.get(chat_id, {}).get("gender")
     mood = settings.get(chat_id, {}).get("mood")
-    
-    print(f"Chat ID: {chat_id}, Lang: {lang}, Gender: {gender}, Mood: {mood}")  # Добавьте эту строку
-    
+
+    print(f"Chat ID: {chat_id}, Lang: {lang}, Gender: {gender}, Mood: {mood}")
+
     if lang and gender and mood:
-        try: 
-            generating_message_id = bot.send_message(message.chat.id, "⏳ Запрос обрабатывается: Подождите несколько секунд, пока я создаю голосовое сообщение.").message_id
-            #engine = pyttsx3.init()
-            
+        try:
+            generating_message_id = bot.send_message(message.chat.id,
+                                                     "⏳ Запрос обрабатывается: Подождите несколько секунд, пока я создаю голосовое сообщение.").message_id
+            # engine = pyttsx3.init()
+
             # Настройка голоса
-            #voices = engine.getProperty('voices')
+
             voice_name = 0
             if lang == "ru":
                 if gender == "male":
@@ -201,9 +199,8 @@ def handle_text(message):
                     voice_name = "en-US-AndrewNeural"
                 elif gender == "female":
                     voice_name = "en-US-AvaNeural"
-            
+
             asyncio.run(make_sound(message.text, voice_name, chat_id))
-           
             bot.send_voice(chat_id, open(f"audio{chat_id}.mp3", 'rb'))
 
             bot.delete_message(chat_id=message.chat.id, message_id=generating_message_id)
@@ -213,7 +210,6 @@ def handle_text(message):
             bot.send_message(chat_id, f"Произошла ошибка при генерации речи: {str(e)}")
     else:
         bot.send_message(chat_id, "Пожалуйста, выберите язык, пол и настройку тона.(Команда /start)")
-
 
 
 bot.polling(non_stop=True)
