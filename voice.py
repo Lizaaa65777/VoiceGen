@@ -227,7 +227,7 @@ async def make_sound(chat_id, text, voice_name, rate, volume, pitch):
         volume=volume_ttn[volume],
         pitch=pitch_ttn[pitch]
     )
-    await tts.save(f"audio{chat_id}.mp3")
+    await tts.save(f"cache/audio{chat_id}.mp3")
 
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
@@ -260,7 +260,7 @@ def handle_text(message):
             
             asyncio.run(make_sound(chat_id, message.text, voice_name, rate, volume, pitch))
 
-            bot.send_voice(chat_id, open(f"audio{chat_id}.mp3", 'rb'))
+            bot.send_voice(chat_id, open(f"cache/audio{chat_id}.mp3", 'rb'))
 
             bot.delete_message(chat_id=message.chat.id, message_id=generating_message_id)
             logging.info(f"Sent audio file for chat ID: {chat_id}")
