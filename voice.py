@@ -19,11 +19,14 @@ HELP = """/help - Введите текст, который нужно озву�
 /reset - Сброс настроек
 /support - Поддержка"""
 
-start_text = """Привет! Я – VoiceGen, ваш помощник для превращения текста в голос. 
-С моей помощью вы можете легко преобразовать любой текст в голосовое сообщение прямо здесь, в Telegram! Вот что я могу для вас сделать:
-Конвертировать текст в голос – просто отправьте текст, и я озвучу его.
-Настройки голоса – настройте скорость, тембр и даже эмоциональность голоса под ваши предпочтения.
-Выбор языка – я поддерживаю несколько языков, чтобы озвучка была максимально понятной и естественной. Для начала просто нажмите кнопку 'Конвертировать текст в голос' или выберите нужные настройки в меню.
+start_text = """Привет! Я – VoiceGen, ваш помощник для превращения текста в голос. Вот что я могу для вас сделать:
+
+1. Конвертировать текст в голос – просто отправьте текст, и я озвучу его.
+
+2. Настройки голоса – настройте скорость, тембр и даже эмоциональность голоса под ваши предпочтения.
+
+3. Выбор языка – я поддерживаю несколько языков, чтобы озвучка была максимально понятной и естественной.
+
 Если нужна помощь, нажмите 'Помощь', и я подскажу, как пользоваться моими возможностями. Добро пожаловать в VoiceGen!"""
 # Словарь для хранения настроек каждого пользователя
 settings = {}
@@ -60,14 +63,17 @@ def show_settings(message):
     
     lang = settings_dict.get("lang", "No language selected")
     gender = settings_dict.get("gender", "No gender selected")
-    mood = settings_dict.get("mood", "Neutral mood")
-    
+    volume = settings_dict.get("volume", "No volume selected")
+    pitch = settings_dict.get("pitch", "No pitch selected")
+    rate = settings_dict.get("rate", "No rate selected")
     settings_text = f"""
 Current Settings for Chat ID {chat_id}:
 
 Язык: {format_func(lang)}
 Пол: {format_func(gender)}
-Эмоция: {format_func(mood)}
+Громкость: {format_func(volume)}
+Тон: {format_func(pitch)}
+Скорость: {format_func(rate)}
 """
     
     bot.send_message(chat_id, settings_text)
@@ -115,7 +121,7 @@ def send_gender_selection(chat_id):
 def send_rate_selection(chat_id):
     markup = types.InlineKeyboardMarkup()
     fast = types.InlineKeyboardButton("Быстро", callback_data="fast")
-    normal = types.InlineKeyboardButton("Нормально", callback_data="normal")
+    normal = types.InlineKeyboardButton("Умеренно", callback_data="normal")
     slow = types.InlineKeyboardButton("Медленно", callback_data="slow")
     markup.add(fast, normal, slow)
     bot.send_message(chat_id, "Выберите настройку скорости:", reply_markup=markup)
@@ -124,7 +130,7 @@ def send_rate_selection(chat_id):
 def send_volume_selection(chat_id):
     markup = types.InlineKeyboardMarkup()
     loud = types.InlineKeyboardButton("Громко", callback_data="loud")
-    normal = types.InlineKeyboardButton("Нормально", callback_data="default")
+    normal = types.InlineKeyboardButton("Умеренно", callback_data="default")
     quiet = types.InlineKeyboardButton("Тихо", callback_data="quiet")
     markup.add(loud, normal, quiet)
     bot.send_message(chat_id, "Выберите настройку громкости:", reply_markup=markup)
@@ -133,7 +139,7 @@ def send_volume_selection(chat_id):
 def send_pitch_selection(chat_id):
     markup = types.InlineKeyboardMarkup()
     high = types.InlineKeyboardButton("Высоко", callback_data="high")
-    normal = types.InlineKeyboardButton("Нормально", callback_data="okay")
+    normal = types.InlineKeyboardButton("Стандартно", callback_data="okay")
     low = types.InlineKeyboardButton("Низко", callback_data="low")
     markup.add(high, normal, low)
     bot.send_message(chat_id, "Выберите настройку тона:", reply_markup=markup)
