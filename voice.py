@@ -121,7 +121,7 @@ def send_rate_selection(chat_id):
 def send_volume_selection(chat_id):
     markup = types.InlineKeyboardMarkup()
     loud = types.InlineKeyboardButton("Громко", callback_data="loud")
-    normal = types.InlineKeyboardButton("Нормально", callback_data="normal")
+    normal = types.InlineKeyboardButton("Нормально", callback_data="default")
     quiet = types.InlineKeyboardButton("Медленно", callback_data="quiet")
     markup.add(loud, normal, quiet)
     bot.send_message(chat_id, "Выберите настройку громкости:", reply_markup=markup)
@@ -129,11 +129,11 @@ def send_volume_selection(chat_id):
 
 def send_pitch_selection(chat_id):
     markup = types.InlineKeyboardMarkup()
-    high = types.InlineKeyboardButton("Громко", callback_data="loud")
-    normal = types.InlineKeyboardButton("Нормально", callback_data="normal")
-    low = types.InlineKeyboardButton("Медленно", callback_data="quiet")
+    high = types.InlineKeyboardButton("Высоко", callback_data="high")
+    normal = types.InlineKeyboardButton("Нормально", callback_data="okay")
+    low = types.InlineKeyboardButton("Низко", callback_data="low")
     markup.add(high, normal, low)
-    bot.send_message(chat_id, "Выберите настройку громкости:", reply_markup=markup)
+    bot.send_message(chat_id, "Выберите настройку тона:", reply_markup=markup)
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -161,24 +161,34 @@ def handle_callback(call):
         set_rate(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} скорость.")
         send_volume_selection(chat_id)
-    elif call.data in ["loud", "normal", "quiet"]:
+    elif call.data in ["loud", "default", "quiet"]:
         set_volume(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} громкость.")
         send_pitch_selection(chat_id)
-    elif call.data in ["high", "normal", "low"]:
+    elif call.data in ["high", "okay", "low"]:
         set_pitch(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} тон.")
         bot.send_message(chat_id, "Теперь введите текст для озвучки.")
 
 
+def set_rate(chat_id, rate):
+    settings[chat_id]["rate"] = rate
 
 
+def set_volume(chat_id, volume):
+    settings[chat_id]["volume"] = volume
 
 
+def set_pitch(chat_id, pitch):
+    settings[chat_id]["pitch"] = pitch
 
 
 def set_language(chat_id, lang):
-    settings[chat_id] = {"lang": lang, "gender": None, "mood": None}
+    settings[chat_id] = {"lang": lang, 
+                         "gender": None, 
+                         "rate": None, 
+                         "volume": None, 
+                         "pitch": None}
 
 
 def set_gender(chat_id, gender):
@@ -188,13 +198,27 @@ def set_gender(chat_id, gender):
 def reset_settings(chat_id):
     settings.pop(chat_id, None)
 
+rate_ttn = {"fast" : "+50%", #ttn - text to number
+            "normal": "+0%",
+            "slow" : "-50%"}
 
-async def make_sound(text, voice_name, id):
+volume_ttn = {"loud" : "+50%",
+            "default": "+0%",
+            "quiet" : "-50%"}
+
+pitch_ttn = {"high" : "+50Hz",
+            "okay": "+0Hz",
+            "low" : "-50Hz"}
+
+async def make_sound(chat_id, text, voice_name, rate, volume, pitch):
     tts = edge_tts.Communicate(
         text=text,
-        voice=voice_name
+        voice=voice_name,
+        rate=rate_ttn[rate],
+        volume=volume_ttn[volume],
+        pitch=pitch_ttn[pitch]
     )
-    await tts.save(f"audio{id}.mp3")
+    await tts.save(f"audio{chat_id}.mp3")
 
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
@@ -202,11 +226,13 @@ def handle_text(message):
     
     lang = settings.get(chat_id, {}).get("lang")
     gender = settings.get(chat_id, {}).get("gender")
-    mood = settings.get(chat_id, {}).get("mood")
+    rate = settings.get(chat_id, {}).get("rate")
+    volume = settings.get(chat_id, {}).get("volume")
+    pitch = settings.get(chat_id, {}).get("pitch")
     
-    print(f"Chat ID: {chat_id}, Lang: {lang}, Gender: {gender}, Mood: {mood}")  # Добавьте эту строку
+    print(f"Chat ID: {chat_id}, Lang: {lang}, Gender: {gender}, Volume: {volume}, Rate: {rate}, Pitch: {pitch}")  # Добавьте эту строку
     
-    if lang and gender and mood:
+    if lang and gender and rate and volume and pitch:
         try: 
             generating_message_id = bot.send_message(message.chat.id, "⏳ Запрос обрабатывается: Подождите несколько секунд, пока я создаю голосовое сообщение.").message_id
             
@@ -223,7 +249,7 @@ def handle_text(message):
                 elif gender == "female":
                     voice_name = "en-US-AvaNeural"
             
-            asyncio.run(make_sound(message.text, voice_name, chat_id))
+            asyncio.run(make_sound(chat_id, message.text, voice_name, rate, volume, pitch))
 
             bot.send_voice(chat_id, open(f"audio{chat_id}.mp3", 'rb'))
 
