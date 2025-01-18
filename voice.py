@@ -122,7 +122,7 @@ def send_volume_selection(chat_id):
     markup = types.InlineKeyboardMarkup()
     loud = types.InlineKeyboardButton("Громко", callback_data="loud")
     normal = types.InlineKeyboardButton("Нормально", callback_data="default")
-    quiet = types.InlineKeyboardButton("Медленно", callback_data="quiet")
+    quiet = types.InlineKeyboardButton("Тихо", callback_data="quiet")
     markup.add(loud, normal, quiet)
     bot.send_message(chat_id, "Выберите настройку громкости:", reply_markup=markup)
 
