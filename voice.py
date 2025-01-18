@@ -4,6 +4,9 @@ import telebot
 from telebot import types
 from gtts import gTTS
 import pyttsx3
+import edge_tts
+import asyncio
+
 
 logging.basicConfig(level=logging.INFO)
 token = '8049026907:AAEblYRbs9V3paCRxlSRp40Z6TiQ6R-neC0'
@@ -163,6 +166,13 @@ def set_mood(chat_id, mood):
 def reset_settings(chat_id):
     settings.pop(chat_id, None)
 
+async def make_sound(text, voice_name, id):
+    tts = edge_tts.Communicate(
+        text=text,
+        voice=voice_name
+    )
+    await tts.save(f"audio{id}.mp3")
+
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
     chat_id = message.chat.id
@@ -180,13 +190,19 @@ def handle_text(message):
             
             # Настройка голоса
             #voices = engine.getProperty('voices')
-            #voice_index = 0
+            voice_name = ""
+            if lang == "ru":
+                if gender == "male":
+                    voice_name = "ru-RU-DmitryNeural"
+                elif gender == "female":
+                    voice_name = "ru-RU-SvetlanaNeural"
+            else:
+                if gender == "male":
+                    voice_name = "en-US-AndrewNeural"
+                elif gender == "female":
+                    voice_name = "en-US-AvaNeural"
             
-            #if gender == "male":
-            #    voice_index = 0  # Первый голос по умолчанию мужской
-            #elif gender == "female":
-            #    voice_index = 1  # Второй голос по умолчанию женский
-            
+            asyncio.run(make_sound(message.text, voice_name, chat_id))
             #engine.setProperty('voice', voices[voice_index].id)
             
             # Установка скорости речи
@@ -199,19 +215,19 @@ def handle_text(message):
             #    engine.setProperty('volume', 0.7)  # Уменьшаем громкость
             
             #engine.save_to_file(f'audio{chat_id}.mp3')
-            tts = gTTS(text=message.text, lang=lang, tld='com')
+            #tts = gTTS(text=message.text, lang=lang, tld='com')
             
             # Обработка выбора голоса
-            voice_options = {
-                "male": {'voice': 'ru', 'rate': 150},
-                "female": {'voice': 'ru', 'rate': 150}
-            }
+            #voice_options = {
+            #    "male": {'voice': 'ru', 'rate': 150},
+            #    "female": {'voice': 'ru', 'rate': 150}
+            #}
             
             # Используем set_rate вместо set_lang и set_voice
             #tts.set_rate(voice_options[gender]['rate'])
             
             
-            tts.save(f"audio{chat_id}.mp3")
+            #tts.save(f"audio{chat_id}.mp3")
             bot.send_voice(chat_id, open(f"audio{chat_id}.mp3", 'rb'))
 
             bot.delete_message(chat_id=message.chat.id, message_id=generating_message_id)
