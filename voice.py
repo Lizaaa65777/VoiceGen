@@ -166,9 +166,6 @@ def handle_text(message):
 
     user_settings = settings.get_user(chat_id)
     
-
-    print(f"Chat ID: {chat_id}, Lang: {lang}, Gender: {gender}, Volume: {volume}, Rate: {rate}, Pitch: {pitch}")  # Добавьте эту строку
-    
     if user_settings:
         try:
 
@@ -177,16 +174,21 @@ def handle_text(message):
             rate = user_settings["rate"]
             volume = user_settings["volume"]
             pitch = user_settings["pitch"]
-            
-            generating_message_id = bot.send_message(message.chat.id, "⏳ Запрос обрабатывается: Подождите несколько секунд, пока я создаю голосовое сообщение.").message_id
-            voice_name = voice_name_selection(lang, gender)
-            
-            asyncio.run(make_sound(chat_id, message.text, voice_name, rate, volume, pitch))
 
-            bot.send_voice(chat_id, open(f"cache/audio{chat_id}.mp3", 'rb'))
+            if lang and gender and rate and volume and pitch:
+                generating_message_id = bot.send_message(message.chat.id, "⏳ Запрос обрабатывается: Подождите несколько секунд, пока я создаю голосовое сообщение.").message_id
+                
+                print(f"Chat ID: {chat_id}, Lang: {lang}, Gender: {gender}, Volume: {volume}, Rate: {rate}, Pitch: {pitch}")
+                voice_name = voice_name_selection(lang, gender)
+                
+                asyncio.run(make_sound(chat_id, message.text, voice_name, rate, volume, pitch))
 
-            bot.delete_message(chat_id=message.chat.id, message_id=generating_message_id)
-            logging.info(f"Sent audio file for chat ID: {chat_id}")
+                bot.send_voice(chat_id, open(f"cache/audio{chat_id}.mp3", 'rb'))
+
+                bot.delete_message(chat_id=message.chat.id, message_id=generating_message_id)
+                logging.info(f"Sent audio file for chat ID: {chat_id}")
+            else:
+                bot.send_message(chat_id, "Пожалуйста, выберите язык, пол и настройку тона.(Команда /start)")
 
         except Exception as e:
             logging.error(f"Error generating audio: {str(e)}")
