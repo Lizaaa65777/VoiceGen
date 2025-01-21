@@ -1,11 +1,9 @@
-import os
 import logging
 import telebot
 from telebot import types
-from gtts import gTTS
-import pyttsx3
 import edge_tts
 import asyncio
+import settings as set
 
 
 logging.basicConfig(level=logging.INFO)
@@ -29,7 +27,7 @@ start_text = '''Привет! Я – VoiceGen, ваш помощник для п
 
 Если нужна помощь, нажмите "Помощь", и я подскажу, как пользоваться моими возможностями. Добро пожаловать в VoiceGen!'''
 # Словарь для хранения настроек каждого пользователя
-settings = {}
+settings = set.Settings()
 
 
 @bot.message_handler(commands=['support'])
@@ -49,31 +47,21 @@ def show_settings(message):
     chat_id = message.chat.id
     
     # Получаем текущие настройки пользователя
-    settings_dict = settings.get(chat_id, {})
+    user_settings = settings.get_user(chat_id)
     
-    lang = settings_dict.get("lang", "ru")  # По умолчанию русский язык
-    
-    def format_russian(text):
-        return text
-    
-    def format_english(text):
-        return text
-    
-    format_func = format_russian if lang == "ru" else format_english
-    
-    lang = settings_dict.get("lang", "No language selected")
-    gender = settings_dict.get("gender", "No gender selected")
-    volume = settings_dict.get("volume", "No volume selected")
-    pitch = settings_dict.get("pitch", "No pitch selected")
-    rate = settings_dict.get("rate", "No rate selected")
+    lang = user_settings.get("lang", "No language selected")
+    gender = user_settings.get("gender", "No gender selected")
+    volume = user_settings.get("volume", "No volume selected")
+    pitch = user_settings.get("pitch", "No pitch selected")
+    rate = user_settings.get("rate", "No rate selected")
     settings_text = f"""
 Current Settings for Chat ID {chat_id}:
 
-Язык: {format_func(lang)}
-Пол: {format_func(gender)}
-Громкость: {format_func(volume)}
-Тон: {format_func(pitch)}
-Скорость: {format_func(rate)}
+Язык: {lang}
+Пол: {gender}
+Громкость: {volume}
+Тон: {pitch}
+Скорость: {rate}
 """
     
     bot.send_message(chat_id, settings_text)
@@ -83,8 +71,8 @@ def start(message):
     chat_id = message.chat.id
     
     # Проверяем наличие настроек для пользователя
-    if chat_id not in settings:
-        reset_settings(chat_id)
+    if settings.get_user(chat_id) == {}:
+        settings.reset_settings(chat_id)
         
     bot.send_message(message.chat.id, start_text)
     send_language_selection(message)
@@ -94,7 +82,7 @@ def start(message):
 def reset_settings_command(message):
     chat_id = message.chat.id
     # Проверяем наличие настроек для пользователя
-    reset_settings(chat_id)
+    settings.reset_settings(chat_id)
     # Отправляем сообщение пользователю о сбросе настроек
     bot.send_message(chat_id, "Ваши настройки были сброшены. Пожалуйста, выберите язык, пол и настройку тона заново.")
     # Отправляем начальное сообщение для выбора языка
@@ -150,11 +138,11 @@ def handle_callback(call):
     chat_id = call.message.chat.id
     
     if call.data == "reset":
-        reset_settings(chat_id)
+        settings.reset_settings(chat_id)
         bot.answer_callback_query(callback_query_id=call.id, text="Настройки сброшены.")
     
     elif call.data in ["ru", "en"]:
-        set_language(chat_id, call.data)
+        settings.set_language(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} язык.")
         
         if call.data == "ru":
@@ -163,49 +151,22 @@ def handle_callback(call):
             send_gender_selection(chat_id)
     
     elif call.data in ["male", "female"]:
-        set_gender(chat_id, call.data)
+        settings.set_gender(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} голос.")
         send_rate_selection(chat_id)
     elif call.data in ["fast", "normal", "slow"]:
-        set_rate(chat_id, call.data)
+        settings.set_rate(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} скорость.")
         send_volume_selection(chat_id)
     elif call.data in ["loud", "default", "quiet"]:
-        set_volume(chat_id, call.data)
+        settings.set_volume(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} громкость.")
         send_pitch_selection(chat_id)
     elif call.data in ["high", "okay", "low"]:
-        set_pitch(chat_id, call.data)
+        settings.set_pitch(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} тон.")
         bot.send_message(chat_id, "Теперь введите текст для озвучки.")
 
-
-def set_rate(chat_id, rate):
-    settings[chat_id]["rate"] = rate
-
-
-def set_volume(chat_id, volume):
-    settings[chat_id]["volume"] = volume
-
-
-def set_pitch(chat_id, pitch):
-    settings[chat_id]["pitch"] = pitch
-
-
-def set_language(chat_id, lang):
-    settings[chat_id]["lang"] = lang
-
-
-def set_gender(chat_id, gender):
-    settings[chat_id]["gender"] = gender
-
-
-def reset_settings(chat_id):
-    settings[chat_id] = {"lang": None, 
-                         "gender": None, 
-                         "rate": None, 
-                         "volume": None, 
-                         "pitch": None}
 
 rate_ttn = {"fast" : "+50%", #ttn - text to number
             "normal": "+0%",
@@ -232,12 +193,12 @@ async def make_sound(chat_id, text, voice_name, rate, volume, pitch):
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
     chat_id = message.chat.id
-    
-    lang = settings.get(chat_id, {}).get("lang")
-    gender = settings.get(chat_id, {}).get("gender")
-    rate = settings.get(chat_id, {}).get("rate")
-    volume = settings.get(chat_id, {}).get("volume")
-    pitch = settings.get(chat_id, {}).get("pitch")
+    user_settings = settings.get_user(chat_id)
+    lang = user_settings["lang"]
+    gender = user_settings["gender"]
+    rate = user_settings["rate"]
+    volume = user_settings["volume"]
+    pitch = user_settings["pitch"]
     
     print(f"Chat ID: {chat_id}, Lang: {lang}, Gender: {gender}, Volume: {volume}, Rate: {rate}, Pitch: {pitch}")  # Добавьте эту строку
     
