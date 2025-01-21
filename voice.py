@@ -92,6 +92,9 @@ def reset_settings_command(message):
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
     chat_id = call.message.chat.id
+    user_settings = settings.get_user(chat_id)
+    if not user_settings:
+        settings.reset_settings(chat_id)
     
     if call.data == "reset":
         settings.reset_settings(chat_id)
@@ -100,21 +103,23 @@ def handle_callback(call):
     elif call.data in ["ru", "en"]:
         settings.set_language(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} язык.")
-        
         bot.send_message(chat_id, "Выберите голос:", reply_markup=markups.gender_markup())
     
     elif call.data in ["male", "female"]:
         settings.set_gender(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} голос.")
         bot.send_message(chat_id, "Выберите настройку скорости:", reply_markup=markups.rate_markup())
+    
     elif call.data in ["fast", "normal", "slow"]:
         settings.set_rate(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} скорость.")
         bot.send_message(chat_id, "Выберите настройку громкости:", reply_markup=markups.volume_markup())
+    
     elif call.data in ["loud", "default", "quiet"]:
         settings.set_volume(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} громкость.")
         bot.send_message(chat_id, "Выберите настройку тона:", reply_markup=markups.pitch_markup())
+    
     elif call.data in ["high", "okay", "low"]:
         settings.set_pitch(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} тон.")
@@ -143,36 +148,38 @@ async def make_sound(chat_id, text, voice_name, rate, volume, pitch):
     )
     await tts.save(f"cache/audio{chat_id}.mp3")
 
+def voice_name_selection(lang, gender):
+    if lang == "ru":
+        if gender == "male":
+            return "ru-RU-DmitryNeural"
+        elif gender == "female":
+            return "ru-RU-SvetlanaNeural"
+    else:
+        if gender == "male":
+            return "en-US-AndrewNeural"
+        elif gender == "female":
+            return "en-US-AvaNeural"
+
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
     chat_id = message.chat.id
 
     user_settings = settings.get_user(chat_id)
     
-    lang = user_settings["lang"]
-    gender = user_settings["gender"]
-    rate = user_settings["rate"]
-    volume = user_settings["volume"]
-    pitch = user_settings["pitch"]
-    
+
     print(f"Chat ID: {chat_id}, Lang: {lang}, Gender: {gender}, Volume: {volume}, Rate: {rate}, Pitch: {pitch}")  # Добавьте эту строку
     
-    if lang and gender and rate and volume and pitch:
-        try: 
-            generating_message_id = bot.send_message(message.chat.id, "⏳ Запрос обрабатывается: Подождите несколько секунд, пока я создаю голосовое сообщение.").message_id
+    if user_settings:
+        try:
+
+            lang = user_settings["lang"]
+            gender = user_settings["gender"]
+            rate = user_settings["rate"]
+            volume = user_settings["volume"]
+            pitch = user_settings["pitch"]
             
-            # Настройка голоса
-            voice_name = ""
-            if lang == "ru":
-                if gender == "male":
-                    voice_name = "ru-RU-DmitryNeural"
-                elif gender == "female":
-                    voice_name = "ru-RU-SvetlanaNeural"
-            else:
-                if gender == "male":
-                    voice_name = "en-US-AndrewNeural"
-                elif gender == "female":
-                    voice_name = "en-US-AvaNeural"
+            generating_message_id = bot.send_message(message.chat.id, "⏳ Запрос обрабатывается: Подождите несколько секунд, пока я создаю голосовое сообщение.").message_id
+            voice_name = voice_name_selection(lang, gender)
             
             asyncio.run(make_sound(chat_id, message.text, voice_name, rate, volume, pitch))
 
@@ -180,6 +187,7 @@ def handle_text(message):
 
             bot.delete_message(chat_id=message.chat.id, message_id=generating_message_id)
             logging.info(f"Sent audio file for chat ID: {chat_id}")
+
         except Exception as e:
             logging.error(f"Error generating audio: {str(e)}")
             bot.send_message(chat_id, f"🚫 Ошибка сервера: Возникли технические неполадки. Пожалуйста, попробуйте еще раз позже. Мы работаем над решением проблемы: {str(e)}")
