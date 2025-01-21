@@ -4,7 +4,7 @@ from telebot import types
 import edge_tts
 import asyncio
 import settings as set
-
+import markups
 
 logging.basicConfig(level=logging.INFO)
 token = '8049026907:AAEblYRbs9V3paCRxlSRp40Z6TiQ6R-neC0'
@@ -26,7 +26,7 @@ start_text = '''Привет! Я – VoiceGen, ваш помощник для п
 3. Выбор языка – я поддерживаю несколько языков, чтобы озвучка была максимально понятной и естественной.
 
 Если нужна помощь, нажмите "Помощь", и я подскажу, как пользоваться моими возможностями. Добро пожаловать в VoiceGen!'''
-# Словарь для хранения настроек каждого пользователя
+
 settings = set.Settings()
 
 
@@ -75,7 +75,7 @@ def start(message):
         settings.reset_settings(chat_id)
         
     bot.send_message(message.chat.id, start_text)
-    send_language_selection(message)
+    bot.send_message(chat_id, "Выберите язык:", reply_markup=markups.lang_murkup())
 
 
 @bot.message_handler(commands='reset')
@@ -86,52 +86,8 @@ def reset_settings_command(message):
     # Отправляем сообщение пользователю о сбросе настроек
     bot.send_message(chat_id, "Ваши настройки были сброшены. Пожалуйста, выберите язык, пол и настройку тона заново.")
     # Отправляем начальное сообщение для выбора языка
-    bot.send_message(chat_id, "Привет! Я могу озвучить текст. Для начала выберите язык:")
-    send_language_selection(message)
-
-
-def send_language_selection(message):
-    markup = types.InlineKeyboardMarkup()
-    ru_button = types.InlineKeyboardButton("Русский", callback_data="ru")
-    en_button = types.InlineKeyboardButton("Английский", callback_data="en")
-    markup.add(ru_button, en_button)
-    bot.send_message(message.chat.id, "Выберите язык:", reply_markup=markup)
-
-
-def send_gender_selection(chat_id):
-    markup = types.InlineKeyboardMarkup()
-    male_button = types.InlineKeyboardButton("Мужской", callback_data="male")
-    female_button = types.InlineKeyboardButton("Женский", callback_data="female")
-    markup.add(male_button, female_button)
-    bot.send_message(chat_id, "Выберите голос:", reply_markup=markup)
-
-
-def send_rate_selection(chat_id):
-    markup = types.InlineKeyboardMarkup()
-    fast = types.InlineKeyboardButton("Быстро", callback_data="fast")
-    normal = types.InlineKeyboardButton("Умеренно", callback_data="normal")
-    slow = types.InlineKeyboardButton("Медленно", callback_data="slow")
-    markup.add(fast, normal, slow)
-    bot.send_message(chat_id, "Выберите настройку скорости:", reply_markup=markup)
-
-
-def send_volume_selection(chat_id):
-    markup = types.InlineKeyboardMarkup()
-    loud = types.InlineKeyboardButton("Громко", callback_data="loud")
-    normal = types.InlineKeyboardButton("Умеренно", callback_data="default")
-    quiet = types.InlineKeyboardButton("Тихо", callback_data="quiet")
-    markup.add(loud, normal, quiet)
-    bot.send_message(chat_id, "Выберите настройку громкости:", reply_markup=markup)
-
-
-def send_pitch_selection(chat_id):
-    markup = types.InlineKeyboardMarkup()
-    high = types.InlineKeyboardButton("Высоко", callback_data="high")
-    normal = types.InlineKeyboardButton("Стандартно", callback_data="okay")
-    low = types.InlineKeyboardButton("Низко", callback_data="low")
-    markup.add(high, normal, low)
-    bot.send_message(chat_id, "Выберите настройку тона:", reply_markup=markup)
-
+    bot.send_message(chat_id, "Выберите язык:", reply_markup=markups.lang_murkup())
+    
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
@@ -145,23 +101,20 @@ def handle_callback(call):
         settings.set_language(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} язык.")
         
-        if call.data == "ru":
-            send_gender_selection(chat_id)
-        else:
-            send_gender_selection(chat_id)
+        bot.send_message(chat_id, "Выберите голос:", reply_markup=markups.gender_markup())
     
     elif call.data in ["male", "female"]:
         settings.set_gender(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} голос.")
-        send_rate_selection(chat_id)
+        bot.send_message(chat_id, "Выберите настройку скорости:", reply_markup=markups.rate_markup())
     elif call.data in ["fast", "normal", "slow"]:
         settings.set_rate(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} скорость.")
-        send_volume_selection(chat_id)
+        bot.send_message(chat_id, "Выберите настройку громкости:", reply_markup=markups.volume_markup())
     elif call.data in ["loud", "default", "quiet"]:
         settings.set_volume(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} громкость.")
-        send_pitch_selection(chat_id)
+        bot.send_message(chat_id, "Выберите настройку тона:", reply_markup=markups.pitch_markup())
     elif call.data in ["high", "okay", "low"]:
         settings.set_pitch(chat_id, call.data)
         bot.answer_callback_query(callback_query_id=call.id, text=f"Вы выбрали {call.data} тон.")
@@ -193,7 +146,9 @@ async def make_sound(chat_id, text, voice_name, rate, volume, pitch):
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
     chat_id = message.chat.id
+
     user_settings = settings.get_user(chat_id)
+    
     lang = user_settings["lang"]
     gender = user_settings["gender"]
     rate = user_settings["rate"]

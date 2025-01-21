@@ -32,8 +32,3 @@ class Settings:
     
     def get_user(self, chat_id):
         return self.setting_dict.get(chat_id, {})
-
-
-sett = Settings()
-
-print(sett.get_user(123))
